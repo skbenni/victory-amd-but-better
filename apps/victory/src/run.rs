@@ -168,6 +168,14 @@ pub fn run(
         // SAFETY: the image stays mapped, and nothing of it has run yet.
         unsafe { victory_loader::write_sites::apply_asked(&image_name, image.base(), size) };
     }
+    // The output size and render scale (VICTORY_OUTPUT, VICTORY_RENDER_SCALE,
+    // VICTORY_UPSCALER; each off without it).
+    #[cfg(windows)]
+    if execute {
+        let size = image.info().size_of_image as usize;
+        // SAFETY: the image stays mapped, and nothing of it has run yet.
+        unsafe { victory_loader::resolution::apply_asked(image.base(), size) };
+    }
     if !execute {
         println!("not executing (pass --execute to start the title)");
         return Ok(());
