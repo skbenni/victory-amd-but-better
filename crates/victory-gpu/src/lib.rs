@@ -49,6 +49,8 @@ mod port;
 mod port_cbv;
 #[cfg(windows)]
 mod port_journal;
+#[cfg(windows)]
+pub mod port_descriptors;
 mod land;
 pub mod list;
 pub mod object;
