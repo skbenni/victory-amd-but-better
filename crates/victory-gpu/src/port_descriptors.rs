@@ -295,10 +295,14 @@ pub(crate) fn to_check(frame: u64) -> Vec<usize> {
 
 /// The fallback found slot `index` (at `handle`) with a new record: a view
 /// record that no mark told of is counted and said.
-pub(crate) fn missed(index: u32, handle: u64, view: bool) {
+pub(crate) fn missed(index: u32, handle: u64, view: bool, tabled: bool) {
     if !view {
         CHECKED[2].fetch_add(1, Relaxed);
         return;
+    }
+    if tabled {
+        // A draw read it through a table lately: the draw makes it anyway.
+        CHECKED[5].fetch_add(1, Relaxed);
     }
     let adopted = ADOPTED.read().unwrap_or_else(|e| e.into_inner());
     let Some(a) = adopted.as_ref() else { return };
@@ -326,6 +330,84 @@ pub(crate) fn missed(index: u32, handle: u64, view: bool) {
     }
 }
 
+/// The runtime's own `memcpy` and `memmove` ([`import`]).
+static REAL: [AtomicUsize; 2] = [const { AtomicUsize::new(0) }; 2];
+
+/// Since the last line: the title's copies into the marked heap, records they marked.
+static COPIES: [AtomicU64; 2] = [const { AtomicU64::new(0) }; 2];
+
+/// What the title's import of `name` (bound to `address`) is bound to: with
+/// the switch, its `memcpy` and `memmove` mark the view records they copy
+/// into the heap (the fallback of run port2-2 found ~250 view records a
+/// frame on 16 pages that the six stores had not told of, the last writers
+/// of their blocks the runtime's `memcpy` among them).
+pub fn import(name: &str, address: usize) -> usize {
+    let (which, ours) = match name {
+        "memcpy" => (0, copy as *const () as usize),
+        "memmove" => (1, shift as *const () as usize),
+        _ => return address,
+    };
+    if !on() {
+        return address;
+    }
+    REAL[which].store(address, Relaxed);
+    ours
+}
+
+type Copy = unsafe extern "system-unwind" fn(*mut u8, *const u8, usize) -> *mut u8;
+
+unsafe extern "system-unwind" fn copy(to: *mut u8, from: *const u8, n: usize) -> *mut u8 {
+    // SAFETY: the title's copy, by the function it asked for.
+    unsafe { copied(to, from, n, REAL[0].load(Relaxed)) }
+}
+
+unsafe extern "system-unwind" fn shift(to: *mut u8, from: *const u8, n: usize) -> *mut u8 {
+    // SAFETY: as above.
+    unsafe { copied(to, from, n, REAL[1].load(Relaxed)) }
+}
+
+/// # Safety
+/// `real` copies as `memcpy` does; the rest are the title's.
+#[inline]
+unsafe fn copied(to: *mut u8, from: *const u8, n: usize, real: usize) -> *mut u8 {
+    // SAFETY: the host's function, noted by `import` before the title ran.
+    let real: Copy = unsafe { std::mem::transmute(real) };
+    // SAFETY: by the caller.
+    let out = unsafe { real(to, from, n) };
+    let len = MARKS.len.load(Acquire);
+    if len != 0 && n >= 4 {
+        let start = MARKS.start.load(Relaxed);
+        let (lo, hi) = ((to as u64).max(start), (to as u64 + n as u64).min(start + len));
+        if lo < hi {
+            COPIES[0].fetch_add(1, Relaxed);
+            // Each slot whose first word now lies in the copy and is a view's.
+            let mut slot = (lo - start).div_ceil(32);
+            let mut marked = 0;
+            while start + slot * 32 + 4 <= hi {
+                let at = start + slot * 32;
+                // SAFETY: just written by the copy, inside the heap.
+                if unsafe { (at as *const u32).read_unaligned() } == crate::descriptor::VIEW_TAG {
+                    mark_slot(slot as usize);
+                    marked += 1;
+                }
+                slot += 1;
+            }
+            COPIES[1].fetch_add(marked, Relaxed);
+        }
+    }
+    out
+}
+
+/// Marks slot `slot` of the marked heap (in it: checked by the caller).
+#[inline]
+fn mark_slot(slot: usize) {
+    // SAFETY: the maps are leaked, as long as the length says.
+    unsafe {
+        (*MARKS.slots.load(Relaxed).add(slot)).store(1, Release);
+        (*MARKS.chunks.load(Relaxed).add(slot / CHUNK)).store(1, Release);
+    }
+}
+
 /// Our own calls' marks since the last line.
 static MARKED_BY_US: AtomicU64 = AtomicU64::new(0);
 /// Since the last line: slots taken, takings, nanoseconds taking.
@@ -333,7 +415,8 @@ static TAKEN: [AtomicU64; 3] = [const { AtomicU64::new(0) }; 3];
 /// Since the last line, of the fallback: pages looked at whole, view records
 /// no mark told of, other records changed (not views), view records told and
 /// not taken yet; nanoseconds.
-pub(crate) static CHECKED: [AtomicU64; 5] = [const { AtomicU64::new(0) }; 5];
+/// and of the view records no mark told of, those of draws' tables.
+pub(crate) static CHECKED: [AtomicU64; 6] = [const { AtomicU64::new(0) }; 6];
 /// Since the start: view records the fallback found that no mark told of.
 static MISSED_ALL: AtomicU64 = AtomicU64::new(0);
 /// Since the start: the missed records by the place that last faulted on their block.
@@ -348,7 +431,8 @@ pub(crate) fn line(frames: f64) {
     }
     let [taken, takings, ns] = [0, 1, 2].map(|i| TAKEN[i].swap(0, Relaxed));
     let ours = MARKED_BY_US.swap(0, Relaxed);
-    let [pages, missed, other, pending, check_ns] = [0, 1, 2, 3, 4].map(|i| CHECKED[i].swap(0, Relaxed));
+    let [pages, missed, other, pending, check_ns, tabled] = [0, 1, 2, 3, 4, 5].map(|i| CHECKED[i].swap(0, Relaxed));
+    let copies = [0, 1].map(|i| COPIES[i].swap(0, Relaxed));
     ALL[0].fetch_add(taken, Relaxed);
     ALL[1].fetch_add(ours, Relaxed);
     ALL[2].fetch_add(pages, Relaxed);
@@ -364,15 +448,18 @@ pub(crate) fn line(frames: f64) {
     };
     tracing::info!(
         "renderer port 2 (VICTORY_PORT_DESCRIPTORS=1) per frame: {:.0} slots told (of them {:.0} marked by our calls, the rest by the title's {} patched stores) in {:.1} takings, {:.3} ms taking; \
-         fallback: {:.1} pages looked at whole, {:.2} view records no store told of, {:.0} other records changed, {:.1} told and not taken yet, {:.2} ms; \
+         of the title's memcpy/memmove calls into the heap {:.0}, {:.0} records they marked; fallback: {:.1} pages looked at whole, {:.2} view records no store told of ({:.2} of them of draws' tables), {:.0} other records changed, {:.1} told and not taken yet, {:.2} ms; \
          since the start: {} slots told ({} by our calls), {} pages looked at, {} view records missed; their writers: {}",
         taken as f64 / frames,
         ours as f64 / frames,
         IMAGE[2].load(Relaxed),
         takings as f64 / frames,
         ns as f64 / 1e6 / frames,
+        copies[0] as f64 / frames,
+        copies[1] as f64 / frames,
         pages as f64 / frames,
         missed as f64 / frames,
+        tabled as f64 / frames,
         other as f64 / frames,
         pending as f64 / frames,
         check_ns as f64 / 1e6 / frames,
