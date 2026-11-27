@@ -38,6 +38,7 @@ if ($Safe) {
     $settings.VICTORY_JOIN_PARTS = '8'; $settings.VICTORY_UPLOAD_AHEAD = '1'
     $settings.VICTORY_PORT_CONSTANTS = '1'; $settings.VICTORY_PORT_CBV = '1'
     $settings.VICTORY_PORT_GUARD = '1'
+    $settings.VICTORY_PORT_JOURNAL = '1'
 }
 if ($RayTracing) { $settings.VICTORY_BVH_BUILDER = '1' }
 foreach ($k in $More.Keys) { $settings[$k] = $More[$k] }

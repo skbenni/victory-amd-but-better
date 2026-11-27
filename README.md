@@ -86,6 +86,10 @@ lock between faults and refreshes and parallelizes refresh planning; Belobug's
 README reports about 2 ms less per frame on its RX 7900 XTX. That result is not
 measured on an RX 6800. `-Safe` leaves it off; override it with
 `-More @{VICTORY_PORT_GUARD='0'}` if needed.
+Renderer port 7 splits write-journal locking and asks for descriptor-heap
+snapshots earlier. Belobug reports roughly 1–3 ms less per frame on its RX 7900
+XTX; this also remains unmeasured on an RX 6800. `-Safe` leaves it off; override
+it with `-More @{VICTORY_PORT_JOURNAL='0'}` if needed.
 
 Before the first run, ahead of time (both can be stopped and go on later):
 
