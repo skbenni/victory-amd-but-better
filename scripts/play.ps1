@@ -33,7 +33,9 @@ if ($Safe) {
     $settings.VICTORY_UNDER_WIDE = '0'; $settings.VICTORY_LAND_ECHO = '0'
 } else {
     $settings.VICTORY_THIN = '1'; $settings.VICTORY_THIN_THREADS = "$thinThreads"
-    $settings.VICTORY_OUTPUT = '1280x720'
+    # The title's shipped FSR4 Quality tables require a 1920x1080 output.
+    # Series S renders that output at 2/3 scale (1280x720 internally).
+    $settings.VICTORY_OUTPUT = '1920x1080'
     $settings.VICTORY_FRAME_INTERVAL_MS = '8.333'
     $settings.VICTORY_JOIN_PARTS = '8'; $settings.VICTORY_UPLOAD_AHEAD = '1'
     $settings.VICTORY_LEVELS_ON_DEMAND = '1'
