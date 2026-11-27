@@ -73,7 +73,8 @@ gain from Series S has been measured on the RX 6800. `-RayTracing` turns the
 title's ray-traced indirect light on. The fast path asks the title for a 1920x1080
 output; override it with `-More @{VICTORY_OUTPUT='2560x1440'}`. Belobug reported
 about 16 ms less GPU time at 1080p on an RX 7900 XTX; this has not been measured
-on an RX 6800.
+on an RX 6800. It also requests 60 fps (`VICTORY_FRAME_INTERVAL_MS=16.667`);
+the actual rate still depends on the scene and hardware.
 
 Before the first run, ahead of time (both can be stopped and go on later):
 
