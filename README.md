@@ -76,6 +76,12 @@ about 16 ms less GPU time at 1080p on an RX 7900 XTX; this has not been measured
 on an RX 6800. It also requests 60 fps (`VICTORY_FRAME_INTERVAL_MS=16.667`);
 the actual rate still depends on the scene and hardware.
 
+The fast path also enables Belobug renderer ports 1 and 5: title graphics memory
+can be read in place, and translated constant-buffer reads avoid per-draw CPU
+fills. Belobug measured these on an RX 7900 XTX, not this RX 6800. `-Safe` leaves
+both off; disable or override either with `-More @{VICTORY_PORT_CONSTANTS='0'}`
+or `-More @{VICTORY_PORT_CBV='0'}` if the driver or game behaves incorrectly.
+
 Before the first run, ahead of time (both can be stopped and go on later):
 
 ```powershell
