@@ -145,13 +145,18 @@ commits taken from elsewhere name the commit and its author.
 - **[DexNom/VIctory](https://github.com/DexNom/VIctory)**: ray tracing fixes,
   cube gradients, sparse textures.
 - **[Belobug/VIctory-Belobug-AMD](https://github.com/Belobug/VIctory-Belobug-AMD)**:
-  the ambient light idea, pipeline workers, and work by romainhedouin.
+  renderer ports 1, 2, 5, 6 and 7, the resolution and frame-rate patches,
+  pipeline workers, the ambient light idea, and work by romainhedouin.
+- **[cputroll/cgbj-reupload](https://github.com/cputroll/cgbj-reupload)**:
+  the CGBJ AMD renderer and the performance baseline this fusion builds on.
+- **[avatarmanz/VIctory-7900XTX](https://github.com/avatarmanz/VIctory-7900XTX)**:
+  the release and launcher lineage used by this checkout.
 - **[FQY55kai/ZJOU-VICTORY](https://github.com/FQY55kai/ZJOU-VICTORY)**.
 - **[myokex/victory-amd](https://github.com/myokex/victory-amd)**: the guard over
   every view of a page (with Spexivus, joroyt and tightfall), and Joshua Odom's
   reads into title memory.
 - **Geckomacabre** and **cxy0072019-sketch**: the texture read-back.
-- **[XCL](https://github.com/ivall/xcl)** (GPL-2.0-only) was read for how the same
+- **[XCL](https://github.com/xcl-dev/xcl)** (GPL-3.0) was read for how the same
   title behaves under another layer. Its free-RAM-based compile admission idea
   was independently implemented for Victory's pipeline workers; no XCL source
   code or allocator code is included.
