@@ -56,8 +56,8 @@ model 6.6 and mesh shaders, Rust (the toolchain is pinned), the MSVC build
 tools, and your own dump of the title.
 
 ```powershell
-git clone https://github.com/avatarmanz/VIctory-7900XTX
-cd VIctory-7900XTX
+git clone https://github.com/skbenni/victory-xcl-Fusion-AMD
+cd victory-xcl-Fusion-AMD
 copy victory.example.toml victory.toml      # then set your paths, outside this folder
 cargo build --release --locked -p victory
 scripts\play.ps1 -Exe <path of your copy's executable>
