@@ -1,28 +1,23 @@
-# VIctory on an RX 7900 XTX
+# VIctory AMD + XCL Fusion
 
-## Run the codec_d Windows build
+A unified Windows Direct3D 12 fork built around CGBJ's AMD renderer, with
+selected performance work from Belobug and fixes from the VIctory and XCL
+lines. Its fast profile prioritizes frame rate and uses the Series S title
+profile by default. XCL's allocator source is not included.
 
-Download and extract the Windows x64 ZIP from the [private releases](https://github.com/codec-d/cool_fox/releases/latest). Open PowerShell in the extracted folder and point the launcher at your own complete Xbox dump.
+The published performance figures below are from an RX 7900 XTX system; this
+fusion has not been benchmarked on the RX 6800. Treat the Series S and residency
+settings as informed performance choices, not proven RX 6800 gains.
 
-```powershell
-$env:VICTORY_GAME_DIR = 'D:\Games\MyDump'
-.\Play-VIctory.cmd pareto-residency
-```
-
-The launcher selects Series S and the RTX-tested residency settings. It builds its shader cache locally under `%LOCALAPPDATA%\VIctory\cache-pareto`. Set `VICTORY_CACHE_DIR` to reuse an existing cache outside the checkout. Windows x64, an AVX2 CPU, and a Direct3D 12 GPU with shader model 6.6 and mesh shader support are required.
-
-To build from this checkout, install the pinned Rust toolchain and the MSVC C++ build tools with a Windows SDK, then run `cargo build --release --locked -p victory`. The same launcher finds `target\release\victory.exe`. The sections below describe the upstream AMD fork and its separate launcher.
-
-A fork of [VIctory](https://github.com/Marvisak/VIctory), a compatibility layer
-that runs an Xbox Series title natively on Windows from files the user supplies.
-This one is about **speed on AMD RDNA 3**: the world at 30 frames a second on
-one PC, without giving up the picture. It is not there yet.
+This is a fork of [VIctory](https://github.com/Marvisak/VIctory), a compatibility
+layer that runs an Xbox Series title natively on Windows from files the user
+supplies.
 
 **This repository contains no game files, code or assets.** You need your own
 copy of the game. It is not affiliated with or endorsed by the game's developer
 or publisher.
 
-## Where it stands (2026-11-25)
+## Upstream benchmark baseline (2026-11-25)
 
 Tested on one machine only: Windows 11, Intel i9-12900K, 64 GB RAM, Radeon
 RX 7900 XTX, 1440p, the Series X profile.
