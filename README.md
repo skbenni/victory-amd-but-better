@@ -70,7 +70,10 @@ overrides that choice. It runs the release build by default; `-Build diag` selec
 a diagnostics build. `-Console series-s` selects the smaller console profile for
 an optional memory/performance comparison; `series-x` remains the default. No FPS
 gain from Series S has been measured on the RX 6800. `-RayTracing` turns the
-title's ray-traced indirect light on.
+title's ray-traced indirect light on. The fast path asks the title for a 1920x1080
+output; override it with `-More @{VICTORY_OUTPUT='2560x1440'}`. Belobug reported
+about 16 ms less GPU time at 1080p on an RX 7900 XTX; this has not been measured
+on an RX 6800.
 
 Before the first run, ahead of time (both can be stopped and go on later):
 
