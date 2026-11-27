@@ -44,6 +44,8 @@ if ($Safe) {
         $settings.VICTORY_LOG = 'warn'
     }
     $settings.VICTORY_PORT_CONSTANTS = '1'; $settings.VICTORY_PORT_CBV = '1'
+    $settings.VICTORY_PORT_CONSTANTS_ORDER = '1'
+    $settings.VICTORY_PORT_CONSTANTS_ORDER_BATCH = '48'
     $settings.VICTORY_PORT_GUARD = '1'
     $settings.VICTORY_PORT_JOURNAL = '1'
     $settings.VICTORY_PORT_DESCRIPTORS = '1'

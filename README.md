@@ -86,6 +86,16 @@ Renderer port 7 splits write-journal locking and asks for descriptor-heap
 snapshots earlier. Belobug reports roughly 1–3 ms less per frame on its RX 7900
 XTX; this also remains unmeasured on an RX 6800. `-Safe` leaves it off; override
 it with `-More @{VICTORY_PORT_JOURNAL='0'}` if needed.
+The fast path also orders and batches renderer-port indirect arguments
+(`VICTORY_PORT_CONSTANTS_ORDER=1`, `VICTORY_PORT_CONSTANTS_ORDER_BATCH=48`).
+AvatarManz's PR #438 reports 2,500–3,000 such executions in heavy scenes and
+31–35 ms/frame of GPU waiting before batching; its batch-size measurements are
+from an RX 7900 XTX and have not been verified on an RX 6800. The batch ends at
+draws or dispatches that can write buffers, copies, clears, resolves, barriers,
+value writes, and waits. Disable it with
+`-More @{VICTORY_PORT_CONSTANTS_ORDER='0'}` or
+`-More @{VICTORY_PORT_CONSTANTS_ORDER_BATCH='0'}` if the game or driver behaves
+incorrectly.
 Renderer port 2 patches six byte-checked title routines so descriptor-table
 writes mark the slots they change; it also tracks slots copied through
 `memcpy`/`memmove` and keeps a periodic page scan as a fallback. Belobug reports
