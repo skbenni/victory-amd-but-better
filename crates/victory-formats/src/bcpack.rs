@@ -79,15 +79,14 @@ struct Bc7Ix {
 
 /// The format's constant tables.
 pub struct Tables {
-    freq: [[u32; BUCKETS]; MODELS],
     /// Each bucket's first slot; 65536 past the model's last, and one more
     /// 65536 at the end so a bucket always has a next start.
     start: [[u32; BUCKETS + 1]; MODELS],
     /// Per model, the bucket of the first slot of each 256-slot window: the
     /// search for a slot's bucket starts there and seldom moves on.
     bucket: Box<[[u8; 256]; MODELS]>,
-    /// ceil(2^32 / freq): exact division for the offsets inside a bucket.
-    recip: [[u64; BUCKETS]; MODELS],
+    /// What a payload step needs of each bucket, in one place.
+    decode: Box<[[Bucket; BUCKETS]; MODELS]>,
     rank1: [u8; 256],
     rank3a: [u8; 64],
     rank3c: [u8; 256],
@@ -100,6 +99,19 @@ pub struct Tables {
     bc5: Vec<Plain>,
     bc6: Vec<(Bc6Ep, Bc6Ix)>,
     bc7: Vec<(Bc7Ep, Bc7Ix)>,
+}
+
+/// One bucket as a payload step decodes it. Bucket 0 (symbol 0, slots 1 ..
+/// f[0] - 1) is written like the others, starting at slot 1 with frequency
+/// f[0] - 1 and a reciprocal of 0, so one branch-free formula serves all.
+#[derive(Clone, Copy, Default)]
+struct Bucket {
+    /// ceil(2^32 / freq): exact division for the offsets inside a bucket.
+    recip: u64,
+    start: u32,
+    freq: u32,
+    /// The bucket's first symbol.
+    first: u32,
 }
 
 struct Reader<'a>(&'a [u8]);
@@ -139,7 +151,7 @@ impl Tables {
         let mut freq = [[0u32; BUCKETS]; MODELS];
         let mut start = [[0u32; BUCKETS + 1]; MODELS];
         let mut bucket = Box::new([[0u8; 256]; MODELS]);
-        let mut recip = [[0u64; BUCKETS]; MODELS];
+        let mut decode = Box::new([[Bucket::default(); BUCKETS]; MODELS]);
         for m in 0..MODELS {
             for f in &mut freq[m] {
                 *f = u32::from(r.u16());
@@ -152,7 +164,21 @@ impl Tables {
                     return Err(Error("a model has an empty bucket"));
                 }
                 start[m][b] = at;
-                recip[m][b] = (1u64 << 32).div_ceil(u64::from(freq[m][b]));
+                decode[m][b] = if b == 0 {
+                    Bucket {
+                        recip: 0,
+                        start: 1,
+                        freq: freq[m][0] - 1,
+                        first: 0,
+                    }
+                } else {
+                    Bucket {
+                        recip: (1u64 << 32).div_ceil(u64::from(freq[m][b])),
+                        start: at,
+                        freq: freq[m][b],
+                        first: 1 << (b - 1),
+                    }
+                };
                 at += freq[m][b] << b.saturating_sub(1);
             }
             if at != 1 << 16 {
@@ -229,10 +255,9 @@ impl Tables {
             })
             .collect();
         Ok(Tables {
-            freq,
             start,
             bucket,
-            recip,
+            decode,
             rank1,
             rank3a,
             rank3c,
@@ -349,24 +374,20 @@ impl Lane {
         }
         self.need = self.left != 0 && self.latch.is_none();
         if x > LOW {
-            let freq = &t.freq[usize::from(self.model)];
-            let start = &t.start[usize::from(self.model)];
             let slot = x & 0xffff;
             // The bucket: starts are ascending, and 65536 past the model's last.
             let b = bucket_of(t, self.model, slot);
             // Bucket 0 holds symbol 0, which owns slots 1 .. f[0] - 1 (slot 0
-            // is never used). Bucket b > 0 holds 2^(b-1) symbols of frequency
-            // f[b] from start[b] on; offset and frequency are below 2^16, where
-            // the reciprocal divides exactly.
-            let (sym, f, rem) = if b == 0 {
-                (0, freq[0] - 1, slot.wrapping_sub(1))
-            } else {
-                let offset = slot - start[b];
-                let q = ((u64::from(offset) * t.recip[usize::from(self.model)][b]) >> 32) as u32;
-                ((1u32 << (b - 1)) + q, freq[b], offset - q * freq[b])
-            };
-            self.x = (x >> 16).wrapping_mul(f).wrapping_add(rem);
-            self.out = Some(sym as u8);
+            // is never used: its offset wraps, as the state then does). Bucket
+            // b > 0 holds 2^(b-1) symbols of frequency f[b] from start[b] on;
+            // offset and frequency are below 2^16, where the reciprocal
+            // divides exactly (bucket 0's is 0: one symbol).
+            let d = &t.decode[usize::from(self.model)][b];
+            let offset = slot.wrapping_sub(d.start);
+            let q = ((u64::from(offset) * d.recip) >> 32) as u32;
+            let rem = offset.wrapping_sub(q * d.freq);
+            self.x = (x >> 16).wrapping_mul(d.freq).wrapping_add(rem);
+            self.out = Some((d.first + q) as u8);
         } else if self.left != 0 {
             // At exactly 2^24 the lane neither reads nor decodes again; only a
             // lane that has delivered its symbols may end up there.
@@ -1443,7 +1464,10 @@ mod tests {
     /// One rANS decode as first written: scan for the bucket, divide for the
     /// symbol, rebuild its frequency and start from the symbol.
     fn reference_decode(t: &Tables, model: u8, x: u32) -> (u8, u32) {
-        let (freq, start) = (&t.freq[usize::from(model)], &t.start[usize::from(model)]);
+        let start = &t.start[usize::from(model)];
+        // The model's frequencies, back from the bucket widths.
+        let freq: [u32; BUCKETS] =
+            std::array::from_fn(|b| (start[b + 1] - start[b]) >> b.saturating_sub(1));
         let slot = x & 0xffff;
         let b = start[1..BUCKETS].iter().filter(|&&s| s <= slot).count();
         let sym = match b {
