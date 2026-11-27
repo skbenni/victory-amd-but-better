@@ -64,7 +64,9 @@ scripts\play.ps1 -Exe <path of your copy's executable>
 ```
 
 `scripts\play.ps1 -Safe` leaves out the newest, faster ways; try it first when
-something is wrong. `-RayTracing` turns the title's ray-traced indirect light on.
+something is wrong. On the fast path, the launcher chooses up to eight list
+workers from the physical CPU core count; `-More @{VICTORY_THIN_THREADS='8'}`
+overrides that choice. `-RayTracing` turns the title's ray-traced indirect light on.
 
 Before the first run, ahead of time (both can be stopped and go on later):
 
