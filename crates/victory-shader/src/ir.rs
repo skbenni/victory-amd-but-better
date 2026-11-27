@@ -83,12 +83,15 @@ pub enum Exit {
 }
 
 impl Exit {
-    pub fn successors(&self) -> Vec<usize> {
-        match *self {
-            Exit::Jump(b) => vec![b],
-            Exit::Branch { taken, not_taken } => vec![taken, not_taken],
-            Exit::End | Exit::Indirect => vec![],
-        }
+    /// The taken edge first. Graph passes ask at every step, so do not
+    /// allocate a vector for these at-most-two successors.
+    pub fn successors(&self) -> impl Iterator<Item = usize> + use<> {
+        let (first, second) = match *self {
+            Exit::Jump(b) => (Some(b), None),
+            Exit::Branch { taken, not_taken } => (Some(taken), Some(not_taken)),
+            Exit::End | Exit::Indirect => (None, None),
+        };
+        first.into_iter().chain(second)
     }
 }
 
@@ -966,8 +969,8 @@ pub(crate) fn reverse_postorder(blocks: &[Block]) -> Vec<usize> {
     while let Some(top) = stack.last_mut() {
         let (b, i) = *top;
         top.1 += 1;
-        match blocks[b].exit.successors().get(i) {
-            Some(&s) if !seen[s] => {
+        match blocks[b].exit.successors().nth(i) {
+            Some(s) if !seen[s] => {
                 seen[s] = true;
                 stack.push((s, 0));
             }
@@ -1143,8 +1146,8 @@ fn multi_entry_loop(blocks: &[Block], inside: &[bool]) -> Option<(Vec<bool>, Vec
         let mut seen = vec![false; blocks.len()];
         let mut stack = vec![from];
         while let Some(b) = stack.pop() {
-            let next = if forward {
-                blocks[b].exit.successors()
+            let next: Vec<usize> = if forward {
+                blocks[b].exit.successors().collect()
             } else {
                 blocks[b].preds.clone()
             };

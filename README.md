@@ -156,7 +156,8 @@ commits taken from elsewhere name the commit and its author.
   cube gradients, sparse textures.
 - **[Belobug/VIctory-Belobug-AMD](https://github.com/Belobug/VIctory-Belobug-AMD)**:
   renderer ports 1, 2, 5, 6 and 7, the resolution and frame-rate patches,
-  pipeline workers, the ambient light idea, and work by romainhedouin.
+  pipeline workers, the ambient light idea, and work by romainhedouin. The
+  allocation-free shader control-flow walk follows [PR #75](https://github.com/Belobug/VIctory-Belobug-AMD/pull/75).
 - **[cputroll/cgbj-reupload](https://github.com/cputroll/cgbj-reupload)**:
   the CGBJ AMD renderer and the performance baseline this fusion builds on.
 - **[avatarmanz/VIctory-7900XTX](https://github.com/avatarmanz/VIctory-7900XTX)**:

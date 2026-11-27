@@ -582,7 +582,7 @@ impl<'a> Lanes<'a> {
         let mut incoming = vec![Vec::new(); blocks.len()];
         let (mut defs, mut phis) = (Map::default(), Map::default());
         for (b, block) in blocks.iter().enumerate() {
-            for (k, s) in block.exit.successors().into_iter().enumerate() {
+            for (k, s) in block.exit.successors().enumerate() {
                 incoming[s].push((b, k == 0));
             }
             for (i, phi) in block.phis.iter().enumerate() {
@@ -1770,7 +1770,7 @@ mod tests {
         // The loop keeps 12 as its header; the entry into 8 gets a copy of it.
         let copy = &p.blocks[4];
         assert_eq!((copy.offset, copy.exit), (8, ir::Exit::Jump(2)));
-        assert_eq!(p.blocks[0].exit.successors(), [2, 4]);
+        assert_eq!(p.blocks[0].exit.successors().collect::<Vec<_>>(), [2, 4]);
         assert_eq!(p.blocks[1].preds, [2]);
         assert!(structure(&p).is_ok());
     }

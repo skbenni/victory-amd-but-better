@@ -1965,7 +1965,7 @@ impl<'a> Tracer<'a> {
     /// itself only through a back edge).
     fn reaches(&self, from: usize, to: usize) -> bool {
         let mut seen = vec![false; self.p.blocks.len()];
-        let mut stack = self.p.blocks[from].exit.successors();
+        let mut stack: Vec<usize> = self.p.blocks[from].exit.successors().collect();
         while let Some(x) = stack.pop() {
             if x == to {
                 return true;

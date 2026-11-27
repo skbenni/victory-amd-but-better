@@ -586,7 +586,7 @@ impl Ctx<'_> {
                     for b in (0..n).filter(|&b| pre[b]) {
                         let inside = match p.blocks[b].exit {
                             Exit::End | Exit::Indirect => false,
-                            ref e => e.successors().iter().all(|&s| pre[s] || s == h),
+                            ref e => e.successors().all(|s| pre[s] || s == h),
                         };
                         if !inside {
                             return Err((p.blocks[b].offset, SHAPE));
@@ -686,7 +686,7 @@ impl Ctx<'_> {
             if lp[b] && !body_block[b] {
                 let ok = match p.blocks[b].exit {
                     Exit::End | Exit::Indirect => false,
-                    ref e => leaves.contains(&b) || e.successors().iter().all(|&s| lp[s]),
+                    ref e => leaves.contains(&b) || e.successors().all(|s| lp[s]),
                 };
                 if !ok {
                     return Err((p.blocks[b].offset, EXIT));
@@ -859,7 +859,7 @@ mod tests {
             assert!(names.contains(&n), "{n} in {names:?}");
         }
         // a loop: its last branch goes back to the copy of the bits still to visit
-        assert!(p.blocks.iter().enumerate().any(|(b, blk)| blk.exit.successors().iter().any(|&s| s < b)));
+        assert!(p.blocks.iter().enumerate().any(|(b, blk)| blk.exit.successors().any(|s| s < b)));
         let own = found(&p);
         // the OR is the section's last lane read, and the bits still to visit (v3) are alike
         let total = insts()
