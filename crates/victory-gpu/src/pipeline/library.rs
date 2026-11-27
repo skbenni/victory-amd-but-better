@@ -55,6 +55,29 @@ use std::sync::{Mutex, MutexGuard, OnceLock, RwLock};
 use windows::Win32::Graphics::Direct3D12::*;
 use windows::core::{HSTRING, Interface, PCWSTR};
 
+/// Which host-library call actually produced a pipeline during one make.
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) enum Came {
+    Nothing,
+    Loaded,
+    Compiled,
+}
+
+thread_local! {
+    static CAME: std::cell::Cell<Came> = const { std::cell::Cell::new(Came::Nothing) };
+}
+
+fn came(value: Came) {
+    CAME.with(|current| current.set(current.get().max(value)));
+}
+
+/// Runs a host-pipeline make and reports the most significant library call.
+pub(crate) fn came_of<R>(make: impl FnOnce() -> R) -> (R, Came) {
+    let before = CAME.replace(Came::Nothing);
+    let made = make();
+    (made, CAME.replace(before))
+}
+
 static DIR: OnceLock<PathBuf> = OnceLock::new();
 
 /// Keeps the pipeline library and the early list in `dir` from now on.
@@ -522,6 +545,7 @@ pub(crate) fn pipeline(
     let wide = HSTRING::from(name);
     let Some(library) = library() else {
         MADE.fetch_add(1, Ordering::Relaxed);
+        came(Came::Compiled);
         return create();
     };
     let began = std::time::Instant::now();
@@ -537,6 +561,7 @@ pub(crate) fn pipeline(
     let refused = match loaded {
         Ok(pso) => {
             LOADED.fetch_add(1, Ordering::Relaxed);
+            came(Came::Loaded);
             crate::host::trail(|| {
                 let label = LABEL.with(|l| l.borrow().clone());
                 format!("pipeline library: loaded {label} in {:.1} ms", began.elapsed().as_secs_f64() * 1e3)
@@ -545,6 +570,7 @@ pub(crate) fn pipeline(
         }
         Err(e) => e,
     };
+    came(Came::Compiled);
     // Compiled outside any lock: compiles take up to seconds.
     let pso = {
         let _call = call("make", name);
@@ -726,13 +752,27 @@ pub(crate) fn slow(key: &str) -> bool {
     slow_ones().as_ref().is_some_and(|s| s.contains_key(key))
 }
 
-/// The title pipeline with `key` took `ms` to make.
-pub(crate) fn note_time(key: &str, ms: u64) {
-    if ms < SLOW_MS {
+/// How a make's duration and origin affect the slow list.
+fn slow_change(ms: u64, origin: Came) -> Option<bool> {
+    match origin {
+        Came::Compiled => Some(ms >= SLOW_MS),
+        Came::Nothing | Came::Loaded => None,
+    }
+}
+
+/// The title pipeline with `key` took `ms` to make; only driver compiles
+/// count as slow pipeline work, not loads from the host library.
+pub(crate) fn note_time(key: &str, ms: u64, origin: Came) {
+    let Some(add) = slow_change(ms, origin) else { return };
+    let mut slow = slow_ones();
+    let slow = slow.get_or_insert_default();
+    if !add {
+        if slow.remove(key).is_some() {
+            USED_CHANGED.store(true, Ordering::Relaxed);
+        }
         return;
     }
-    let mut slow = slow_ones();
-    let known = slow.get_or_insert_default().entry(key.to_owned()).or_insert(0);
+    let known = slow.entry(key.to_owned()).or_insert(0);
     if ms > *known {
         *known = ms;
         // With the next save of the early list.

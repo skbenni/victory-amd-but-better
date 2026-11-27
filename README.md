@@ -41,7 +41,10 @@ What is known to be wrong:
 - Rooms with little direct light are too dark without `-RayTracing`.
 - Textures of what just came into view appear late while the title streams.
 - The first run with a new driver or a new build stutters while the driver makes
-  pipelines (`victory warm` makes them ahead).
+  pipelines (`victory warm` makes them ahead). The slow-pipeline queue now
+  tracks actual driver compiles, not cache loads; a quick compile removes a
+  stale slow entry. This improves warmup scheduling, not steady-state frame
+  time.
 - Recording a frame in the world makes the title's own watchdog end it.
 
 ## How to run it

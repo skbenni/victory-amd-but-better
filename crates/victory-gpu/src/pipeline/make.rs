@@ -226,8 +226,8 @@ impl Pending {
         self.made.get_or_init(|| {
             let _permit = CompilePermit::take(self);
             let began = Instant::now();
-            let made = HostPipeline::new(&self.shaders, self.graphics.as_deref());
-            super::library::note_time(&self.key, began.elapsed().as_millis() as u64);
+            let (made, origin) = super::library::came_of(|| HostPipeline::new(&self.shaders, self.graphics.as_deref()));
+            super::library::note_time(&self.key, began.elapsed().as_millis() as u64, origin);
             made
         });
         let (lock, done) = &DONE;
