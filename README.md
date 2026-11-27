@@ -67,14 +67,15 @@ scripts\play.ps1 -Exe <path of your copy's executable>
 something is wrong. On the fast path, the launcher chooses up to eight list
 workers from the physical CPU core count; `-More @{VICTORY_THIN_THREADS='8'}`
 overrides that choice. It runs the release build by default; `-Build diag` selects
-a diagnostics build. `-Console series-s` selects the smaller console profile for
-an optional memory/performance comparison; `series-x` remains the default. No FPS
-gain from Series S has been measured on the RX 6800. `-RayTracing` turns the
-title's ray-traced indirect light on. The fast path asks the title for a 1920x1080
-output; override it with `-More @{VICTORY_OUTPUT='2560x1440'}`. Belobug reported
-about 16 ms less GPU time at 1080p on an RX 7900 XTX; this has not been measured
-on an RX 6800. It also requests 60 fps (`VICTORY_FRAME_INTERVAL_MS=16.667`);
-the actual rate still depends on the scene and hardware.
+a diagnostics build. The fast path defaults to `-Console series-s` for speed;
+`-Console series-x` selects the sharper profile. Belobug reported about 5 ms
+shorter frames with Series S at 1080p on an RX 7900 XTX, but this has not been
+measured on an RX 6800. `-RayTracing` turns the title's ray-traced indirect
+light on. The fast path asks the title for a 1920x1080 output; override it with
+`-More @{VICTORY_OUTPUT='2560x1440'}`. Belobug reported about 16 ms less GPU
+time at 1080p on an RX 7900 XTX; this has not been measured on an RX 6800. It
+also requests 60 fps (`VICTORY_FRAME_INTERVAL_MS=16.667`); the actual rate still
+depends on the scene and hardware.
 
 The fast path also enables Belobug renderer ports 1 and 5: title graphics memory
 can be read in place, and translated constant-buffer reads avoid per-draw CPU

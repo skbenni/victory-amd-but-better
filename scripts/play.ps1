@@ -3,7 +3,7 @@
 # -Safe         without the newer, faster ways (the first thing to try when something is wrong)
 # -RayTracing   the title's own ray-traced indirect light: lit interiors, about a third slower
 # -Build        target\release (the default for playing) or target\diag (detailed measurements)
-# -Console      series-x (default) or series-s
+# -Console      series-s (default for speed) or series-x (sharper profile)
 # -More         other settings: -More @{VICTORY_PANEL='1'}
 # The fast path uses up to eight list workers, capped by physical CPU cores.
 # Run it from a normal window, not as administrator: the driver then keeps its shader cache elsewhere.
@@ -12,7 +12,7 @@ param(
     [switch]$Safe,
     [switch]$RayTracing,
     [ValidateSet('diag', 'release')][string]$Build = 'release',
-    [ValidateSet('series-x', 'series-s')][string]$Console = 'series-x',
+    [ValidateSet('series-x', 'series-s')][string]$Console = 'series-s',
     [hashtable]$More = @{}
 )
 $thinThreads = 8
