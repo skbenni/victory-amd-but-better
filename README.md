@@ -1,4 +1,4 @@
-# VIctory AMD Xbox Compatibility
+# VIctory AMD But Better
 
 A Windows Direct3D 12 compatibility layer for running a user-supplied Xbox
 Series game dump. This repository is an AMD-focused VIctory fork that combines
