@@ -471,8 +471,15 @@ fn argument_copies(first: &std::sync::Arc<crate::shadow::Shadow>) -> Vec<(u64, I
 }
 
 /// What one title list has set, and what its host list was last given.
+struct Hoist {
+    clamps: std::sync::Weak<HostList>,
+    into: usize,
+    writes: u64,
+}
+
 #[derive(Default)]
 pub(crate) struct State {
+    hoist: Option<Hoist>,
     pipeline: usize,
     /// View heap, sampler heap.
     heaps: [usize; 2],
@@ -1107,7 +1114,44 @@ fn heap_buffer_pass(heap: &crate::descriptor::Heap, host: &crate::descriptor::ho
 }
 
 impl State {
+    pub(crate) fn hoists_into(&self, list: &HostList) -> bool {
+        self.hoist.as_ref().is_some_and(|h| {
+            h.into == std::ptr::from_ref(list) as usize && h.writes == list.writes()
+        })
+    }
+
+    pub(crate) fn indirect_hoistable(&self, kind: u32, max: u32, counted: bool) -> bool {
+        kind != 2
+            && (max > 1 || counted)
+            && !(matches!(kind, 0 | 1) && self.topology == RECTANGLES)
+    }
+
+    pub(crate) fn hoist(&mut self, clamps: &std::sync::Arc<HostList>, into: &HostList) {
+        self.end_hoist();
+        self.hoist = Some(Hoist {
+            clamps: std::sync::Arc::downgrade(clamps),
+            into: std::ptr::from_ref(into) as usize,
+            writes: into.writes(),
+        });
+    }
+
+    pub(crate) fn end_hoist(&mut self) {
+        if let Some(hoist) = self.hoist.take()
+            && let Some(clamps) = hoist.clamps.upgrade()
+        {
+            clamps.clamp_end();
+            clamps.close();
+        }
+    }
+
+    fn hoist_list(&self, list: &HostList) -> Option<std::sync::Arc<HostList>> {
+        self.hoists_into(list)
+            .then(|| self.hoist.as_ref()?.clamps.upgrade())
+            .flatten()
+    }
+
     pub(crate) fn reset(&mut self, pipeline: This) {
+        self.end_hoist();
         *self = State::default();
         self.pipeline = pipeline as usize;
     }
@@ -3225,6 +3269,7 @@ impl State {
         }
         // SAFETY: an open list with everything set.
         unsafe { list.list.Dispatch(x, y, z) };
+        list.count_write();
         self.buffers_written();
         DISPATCHED.fetch_add(1, Ordering::Relaxed);
         if let Some(role) = p.stages.first().and_then(|s| s.shader.ambient)
@@ -4382,6 +4427,13 @@ impl State {
             && max == 1
             && count.is_none()
             && !p.stages.iter().any(|stage| stage.translated().stores);
+        if ordered
+            || batch.is_some()
+            || windowed
+            || (matches!(kind, DRAW | INDEXED) && self.topology == RECTANGLES)
+        {
+            self.end_hoist();
+        }
         // Another host list (a new one after a cut, or this one after its
         // reset) has another scratch buffer, or this one's with old bytes.
         if !windowed || list.first_use(WINDOW_USE) {
@@ -4394,7 +4446,29 @@ impl State {
             .filter(|w| same(w) && offset >= w.base)
             .filter(|w| (offset - w.base) % u64::from(w.step) == 0 && (offset - w.base) / u64::from(w.step) < u64::from(w.records))
             .map(|w| (w.scratch.clone(), offset - w.base));
-        let (bounded, at) = match batch.or(hit) {
+        let hoisted = if !ordered && batch.is_none() && !windowed && kind != DISPATCH
+            && !(matches!(kind, DRAW | INDEXED) && self.topology == RECTANGLES)
+        {
+            self.hoist_list(list).and_then(|clamps| {
+                args.refresh(&clamps, arguments, len);
+                if let Some((s, at)) = &counter {
+                    s.refresh(&clamps, *at, 4);
+                }
+                let bounded = crate::indirect::bound_before(
+                    &clamps,
+                    (&args.buffer, args.offset(arguments)),
+                    counter.as_ref().map(|(s, at)| (&s.buffer, s.offset(*at))),
+                    (kind, stride, max),
+                );
+                if bounded.is_none() {
+                    self.end_hoist();
+                }
+                bounded
+            })
+        } else {
+            None
+        };
+        let (bounded, at) = match hoisted.or(batch).or(hit) {
             Some(hit) => hit,
             None => {
                 // A record a short step after the last window's last one
@@ -4487,6 +4561,7 @@ impl State {
             self.mesh_scissor(list, false);
         }
         if kind == DISPATCH {
+            list.count_write();
             self.buffers_written();
         } else {
             self.drew(Some(p));

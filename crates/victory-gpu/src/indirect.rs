@@ -254,6 +254,11 @@ fn clamp() -> Option<&'static Clamp> {
         .as_ref()
 }
 
+pub(crate) fn hoisting() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var_os("VICTORY_HOIST_CLAMPS").is_some_and(|v| v == "1"))
+}
+
 fn make() -> windows::core::Result<Clamp> {
     let device = &host().ok_or_else(windows::core::Error::empty)?.device;
     make_for(device)
@@ -402,6 +407,56 @@ pub(crate) fn bound(
     let bytes = validate_layout(spec, src.1, count.map(|(_, off)| off))?;
     let (c, budget, dst) = (clamp()?, list.budget()?, list.indirect_scratch(bytes)?);
     clamp_into(list, c, &dst, budget, src, count, spec, false).then_some(dst)
+}
+
+/// Records a clamp in a command list that runs before the draw run.
+pub(crate) fn bound_before(
+    clamps: &HostList,
+    (src, src_offset): (&ID3D12Resource, u64),
+    count: Option<(&ID3D12Resource, u64)>,
+    (kind, stride, records): (u32, u32, u32),
+) -> Option<(ID3D12Resource, u64)> {
+    let bytes = validate_layout((kind, stride, records), src_offset, count.map(|(_, off)| off))?;
+    if records == 0 {
+        return None;
+    }
+    let (c, budget) = (clamp()?, clamps.budget()?);
+    // SAFETY: live source and count buffers.
+    let (src_base, count_base) = unsafe {
+        (src.GetGPUVirtualAddress(), count.map(|(b, _)| b.GetGPUVirtualAddress()))
+    };
+    let fits = |offset: u64, len: u64| {
+        offset.checked_add(len).is_some_and(|end| end <= u64::from(u32::MAX))
+    };
+    let (src_gpu, args_offset) = if fits(src_offset, bytes) {
+        (src_base, src_offset as u32)
+    } else {
+        (src_base.checked_add(src_offset)?, 0)
+    };
+    let (count_gpu, has_count, count_offset) = match (count, count_base) {
+        (Some((_, off)), Some(base)) if fits(off, 4) => (base, 1u32, off as u32),
+        (Some((_, off)), Some(base)) => (base.checked_add(off)?, 1, 0),
+        _ => (src_gpu, 0, 0),
+    };
+    if !src_gpu.is_multiple_of(4) || !count_gpu.is_multiple_of(4) || !budget.is_multiple_of(4) {
+        return None;
+    }
+    let (dst, at) = clamps.clamp_room(bytes)?;
+    // SAFETY: the output range belongs to this open clamp list.
+    let dst_gpu = unsafe { dst.GetGPUVirtualAddress() }.checked_add(at)?;
+    let constants = [kind, stride, records, args_offset, has_count, count_offset];
+    // SAFETY: the pipeline, buffers, budget, and output range are live.
+    unsafe {
+        clamps.list.SetComputeRootSignature(&c.root);
+        clamps.list.SetPipelineState(&c.pso);
+        clamps.list.SetComputeRoot32BitConstants(0, 6, constants.as_ptr().cast(), 0);
+        clamps.list.SetComputeRootShaderResourceView(1, src_gpu);
+        clamps.list.SetComputeRootShaderResourceView(2, count_gpu);
+        clamps.list.SetComputeRootUnorderedAccessView(3, dst_gpu);
+        clamps.list.SetComputeRootUnorderedAccessView(4, budget);
+        clamps.list.Dispatch(records.div_ceil(64), 1, 1);
+    }
+    Some((dst, at))
 }
 
 /// [`bound`] for a window of records clamped ahead of the draws that will

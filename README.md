@@ -104,6 +104,14 @@ value writes, and waits. Disable it with
 `-More @{VICTORY_PORT_CONSTANTS_ORDER='0'}` or
 `-More @{VICTORY_PORT_CONSTANTS_ORDER_BATCH='0'}` if the game or driver behaves
 incorrectly.
+The fast path also hoists clamp dispatches for eligible multi-record indirect
+draws into a command list before the draw run (`VICTORY_HOIST_CLAMPS=1`). This
+avoids putting a clamp dispatch between every draw. Belobug reports 225 to
+72 ms GPU time in a 9,300-draw test scene; that result is from its own setup,
+not an RX 6800 benchmark ([source](https://github.com/Belobug/VIctory-Belobug-AMD/commit/ccab9730bcfe5d42be2cb85e338be80591b0e3ab)).
+One-record indirect draws keep using the existing batch path. Disable hoisting
+with `-More @{VICTORY_HOIST_CLAMPS='0'}` if the game or driver behaves
+incorrectly.
 Renderer port 2 patches six byte-checked title routines so descriptor-table
 writes mark the slots they change; it also tracks slots copied through
 `memcpy`/`memmove` and keeps a periodic page scan as a fallback. Belobug reports
