@@ -1,4 +1,5 @@
-# VIctory
+# VIctory X XCL for AMD
+## still in building no test runs provided from me
 
 Runs Grand Theft Auto VI (Xbox Series X|S) natively on Windows, from files
 the user supplies.
