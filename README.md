@@ -103,6 +103,12 @@ but uses some of the GPU's memory budget. Both are omitted by `-Safe` and can
 be overridden through `-More`. Their FPS effect has not been measured on the
 RX 6800.
 
+For streaming bursts, the fast path starts four DirectStorage workers below
+normal priority, following the worker controls proposed in Belobug PR #402.
+This gives frame work more CPU priority at the possible cost of slower texture
+streaming. `-Safe` uses the default worker count and priority; override them
+with `-More @{VICTORY_DSTORAGE_WORKERS='6'; VICTORY_DSTORAGE_PRIORITY='normal'}`.
+
 Before the first run, ahead of time (both can be stopped and go on later):
 
 ```powershell

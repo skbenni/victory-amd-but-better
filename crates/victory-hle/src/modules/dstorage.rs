@@ -600,6 +600,13 @@ struct Job {
 // SAFETY: as for `Lane`.
 unsafe impl Send for Job {}
 
+/// How many DirectStorage workers to start: `VICTORY_DSTORAGE_WORKERS=n`
+/// (1 to 64), or one per logical processor. Fewer workers leave more CPU
+/// time for frame-critical threads during streaming bursts.
+fn worker_count(asked: Option<usize>, processors: usize) -> usize {
+    asked.map_or(processors, |n| n.clamp(1, 64))
+}
+
 /// The scheduler, with its workers started on first use; `None` if not
 /// even one worker could start.
 fn scheduler() -> Option<&'static Scheduler> {
@@ -629,16 +636,31 @@ fn scheduler() -> Option<&'static Scheduler> {
         })
         .as_ref()?;
     STARTED.call_once(|| {
-        let workers = std::thread::available_parallelism().map_or(4, |n| n.get());
+        let workers = worker_count(
+            std::env::var("VICTORY_DSTORAGE_WORKERS")
+                .ok()
+                .and_then(|v| v.trim().parse().ok()),
+            std::thread::available_parallelism().map_or(4, |n| n.get()),
+        );
+        let below = std::env::var("VICTORY_DSTORAGE_PRIORITY").is_ok_and(|v| v.trim() == "below");
         let started = (0..workers)
             .filter(|i| {
                 std::thread::Builder::new()
                     .name(format!("dstorage {i}"))
-                    .spawn(|| work(scheduler))
+                    .spawn(move || {
+                        if below {
+                            use windows_sys::Win32::System::Threading::{
+                                GetCurrentThread, SetThreadPriority, THREAD_PRIORITY_BELOW_NORMAL,
+                            };
+                            // SAFETY: this is the pseudo-handle of the calling thread.
+                            unsafe { SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_BELOW_NORMAL); }
+                        }
+                        work(scheduler)
+                    })
                     .is_ok()
             })
             .count();
-        tracing::info!(workers = started, "dstorage: workers");
+        tracing::info!(workers = started, below, "dstorage: workers");
     });
     Some(scheduler)
 }

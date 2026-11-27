@@ -38,6 +38,8 @@ if ($Safe) {
     $settings.VICTORY_JOIN_PARTS = '8'; $settings.VICTORY_UPLOAD_AHEAD = '1'
     $settings.VICTORY_LEVELS_ON_DEMAND = '1'
     $settings.VICTORY_CARD_BUFFERS_MIN_KB = '64'
+    $settings.VICTORY_DSTORAGE_WORKERS = '4'
+    $settings.VICTORY_DSTORAGE_PRIORITY = 'below'
     if ($Build -eq 'release' -and -not $More.ContainsKey('VICTORY_LOG') -and -not $env:RUST_LOG) {
         $settings.VICTORY_LOG = 'warn'
     }
