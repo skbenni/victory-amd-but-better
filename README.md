@@ -99,6 +99,14 @@ different build is left unpatched site by site. This result is not an RX 6800
 benchmark. `-Safe` leaves the port off; override it with
 `-More @{VICTORY_PORT_DESCRIPTORS='0'}` if needed.
 
+The fast path also takes CGBJ's two residency settings: texture mip levels are
+allocated on demand when the GPU supports tiled resources, and shader-written
+buffers as small as 64 KiB are eligible for GPU-local copies. The first can
+lower texture memory held at once; the second can reduce host-memory traffic
+but uses some of the GPU's memory budget. Both are omitted by `-Safe` and can
+be overridden through `-More`. Their FPS effect has not been measured on the
+RX 6800.
+
 Before the first run, ahead of time (both can be stopped and go on later):
 
 ```powershell
