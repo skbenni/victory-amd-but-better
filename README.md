@@ -59,20 +59,21 @@ tools, and your own dump of the title.
 git clone https://github.com/avatarmanz/VIctory-7900XTX
 cd VIctory-7900XTX
 copy victory.example.toml victory.toml      # then set your paths, outside this folder
-cargo build --locked --profile diag -p victory --features diagnostics
+cargo build --release --locked -p victory
 scripts\play.ps1 -Exe <path of your copy's executable>
 ```
 
 `scripts\play.ps1 -Safe` leaves out the newest, faster ways; try it first when
 something is wrong. On the fast path, the launcher chooses up to eight list
 workers from the physical CPU core count; `-More @{VICTORY_THIN_THREADS='8'}`
-overrides that choice. `-RayTracing` turns the title's ray-traced indirect light on.
+overrides that choice. It runs the release build by default; `-Build diag` selects
+a diagnostics build. `-RayTracing` turns the title's ray-traced indirect light on.
 
 Before the first run, ahead of time (both can be stopped and go on later):
 
 ```powershell
-target\diag\victory.exe shaders <the shader archives>   # every shader translated, minutes
-target\diag\victory.exe warm --used                     # pipelines earlier runs drew with, for a new driver or build
+target\release\victory.exe shaders <the shader archives>   # every shader translated, minutes
+target\release\victory.exe warm --used                     # pipelines earlier runs drew with, for a new driver or build
 ```
 
 Commands, debugging switches and upstream's own description:

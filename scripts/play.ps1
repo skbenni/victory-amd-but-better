@@ -2,7 +2,7 @@
 #   scripts\play.ps1 -Exe <path of your own copy's executable>
 # -Safe         without the newer, faster ways (the first thing to try when something is wrong)
 # -RayTracing   the title's own ray-traced indirect light: lit interiors, about a third slower
-# -Build        target\diag (the default, the build all measurements are of) or target\release
+# -Build        target\release (the default for playing) or target\diag (detailed measurements)
 # -More         other settings: -More @{VICTORY_PANEL='1'}
 # The fast path uses up to eight list workers, capped by physical CPU cores.
 # Run it from a normal window, not as administrator: the driver then keeps its shader cache elsewhere.
@@ -10,7 +10,7 @@ param(
     [Parameter(Mandatory)][string]$Exe,
     [switch]$Safe,
     [switch]$RayTracing,
-    [ValidateSet('diag', 'release')][string]$Build = 'diag',
+    [ValidateSet('diag', 'release')][string]$Build = 'release',
     [hashtable]$More = @{}
 )
 $thinThreads = 8
