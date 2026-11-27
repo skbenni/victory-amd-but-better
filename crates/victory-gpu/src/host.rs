@@ -1221,6 +1221,7 @@ struct ClampChunks {
     used: usize,
     at: u64,
     barrier: bool,
+    bound: bool,
 }
 
 /// A list's prelude: an allocator and a closed list.
@@ -6369,6 +6370,7 @@ impl HostList {
             chunks.used = 0;
             chunks.at = 0;
             chunks.barrier = false;
+            chunks.bound = false;
         }
         // SAFETY: the list is not executing.
         let reset = unsafe {
@@ -7161,6 +7163,12 @@ impl HostList {
 
     pub(crate) fn writes(&self) -> u64 {
         self.writes.load(Ordering::Relaxed)
+    }
+
+    /// Whether the hoist list still needs its shared compute state bound.
+    pub(crate) fn clamp_unbound(&self) -> bool {
+        let mut chunks = self.clamp_chunks.lock().unwrap_or_else(|e| e.into_inner());
+        !std::mem::replace(&mut chunks.bound, true)
     }
 
     pub(crate) fn clamp_room(&self, bytes: u64) -> Option<(ID3D12Resource, u64)> {

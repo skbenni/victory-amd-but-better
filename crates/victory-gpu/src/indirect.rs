@@ -447,13 +447,15 @@ pub(crate) fn bound_before(
     let constants = [kind, stride, records, args_offset, has_count, count_offset];
     // SAFETY: the pipeline, buffers, budget, and output range are live.
     unsafe {
-        clamps.list.SetComputeRootSignature(&c.root);
-        clamps.list.SetPipelineState(&c.pso);
+        if clamps.clamp_unbound() {
+            clamps.list.SetComputeRootSignature(&c.root);
+            clamps.list.SetPipelineState(&c.pso);
+            clamps.list.SetComputeRootUnorderedAccessView(4, budget);
+        }
         clamps.list.SetComputeRoot32BitConstants(0, 6, constants.as_ptr().cast(), 0);
         clamps.list.SetComputeRootShaderResourceView(1, src_gpu);
         clamps.list.SetComputeRootShaderResourceView(2, count_gpu);
         clamps.list.SetComputeRootUnorderedAccessView(3, dst_gpu);
-        clamps.list.SetComputeRootUnorderedAccessView(4, budget);
         clamps.list.Dispatch(records.div_ceil(64), 1, 1);
     }
     Some((dst, at))

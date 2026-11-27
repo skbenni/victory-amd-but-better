@@ -109,6 +109,8 @@ draws into a command list before the draw run (`VICTORY_HOIST_CLAMPS=1`). This
 avoids putting a clamp dispatch between every draw. Belobug reports 225 to
 72 ms GPU time in a 9,300-draw test scene; that result is from its own setup,
 not an RX 6800 benchmark ([source](https://github.com/Belobug/VIctory-Belobug-AMD/commit/ccab9730bcfe5d42be2cb85e338be80591b0e3ab)).
+The shared clamp pipeline and budget are bound once per run, following
+[Belobug's follow-up](https://github.com/Belobug/VIctory-Belobug-AMD/commit/ab5ece8f20ff14dfeb29041e91463632251712a1).
 One-record indirect draws keep using the existing batch path. Disable hoisting
 with `-More @{VICTORY_HOIST_CLAMPS='0'}` if the game or driver behaves
 incorrectly.
