@@ -90,6 +90,14 @@ Renderer port 7 splits write-journal locking and asks for descriptor-heap
 snapshots earlier. Belobug reports roughly 1–3 ms less per frame on its RX 7900
 XTX; this also remains unmeasured on an RX 6800. `-Safe` leaves it off; override
 it with `-More @{VICTORY_PORT_JOURNAL='0'}` if needed.
+Renderer port 2 patches six byte-checked title routines so descriptor-table
+writes mark the slots they change; it also tracks slots copied through
+`memcpy`/`memmove` and keeps a periodic page scan as a fallback. Belobug reports
+that this replaces scanning roughly 600,000 slots per frame on its RX 7900 XTX.
+The six expected code windows were confirmed in the local game executable; a
+different build is left unpatched site by site. This result is not an RX 6800
+benchmark. `-Safe` leaves the port off; override it with
+`-More @{VICTORY_PORT_DESCRIPTORS='0'}` if needed.
 
 Before the first run, ahead of time (both can be stopped and go on later):
 
