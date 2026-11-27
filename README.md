@@ -75,8 +75,10 @@ work; use `-More @{VICTORY_OUTPUT='1920x1080'}` for a sharper image or
 upscaler renders at two-thirds scale by default, so the new fast output is
 about 853x480 internally. Belobug reported about 16 ms less GPU time at 1080p
 than at 4K on an RX 7900 XTX; this has not been measured on an RX 6800.
-The fast path also requests 60 fps (`VICTORY_FRAME_INTERVAL_MS=16.667`); the
-actual rate still depends on the scene and hardware.
+The fast path requests up to 120 fps (`VICTORY_FRAME_INTERVAL_MS=8.333`),
+below your monitor's 200 Hz limit; the actual rate still depends on the scene
+and hardware. Use `-More @{VICTORY_FRAME_INTERVAL_MS='16.667'}` to cap it at 60,
+or `-More @{VICTORY_FRAME_INTERVAL_MS='0'}` to remove the frame-clock wait.
 `Play-VIctory.cmd` is a small wrapper around this same PowerShell profile and
 always starts the executable built from this checkout (`target\release\victory.exe`).
 

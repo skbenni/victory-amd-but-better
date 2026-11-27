@@ -34,7 +34,7 @@ if ($Safe) {
 } else {
     $settings.VICTORY_THIN = '1'; $settings.VICTORY_THIN_THREADS = "$thinThreads"
     $settings.VICTORY_OUTPUT = '1280x720'
-    $settings.VICTORY_FRAME_INTERVAL_MS = '16.667'
+    $settings.VICTORY_FRAME_INTERVAL_MS = '8.333'
     $settings.VICTORY_JOIN_PARTS = '8'; $settings.VICTORY_UPLOAD_AHEAD = '1'
     $settings.VICTORY_LEVELS_ON_DEMAND = '1'
     $settings.VICTORY_CARD_BUFFERS_MIN_KB = '64'
