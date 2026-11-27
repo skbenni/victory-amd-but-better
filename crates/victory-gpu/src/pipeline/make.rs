@@ -29,6 +29,91 @@ use std::time::{Duration, Instant};
 use super::Shader;
 use super::host::{GraphicsState, HostPipeline};
 
+const MIB: u64 = 1 << 20;
+
+/// Active driver compiles and their estimated temporary host-memory demand.
+/// On hosts with at most 32 GiB of RAM, a pipeline is admitted only when the
+/// compile reserve, this pipeline, and compiles already in flight fit in the
+/// currently free physical memory. At least one compile may run so a single
+/// unusually large pipeline cannot deadlock the title.
+#[derive(Default)]
+struct CompileState {
+    active: usize,
+    estimated_bytes: u64,
+}
+
+static COMPILE_STATE: Mutex<CompileState> = Mutex::new(CompileState { active: 0, estimated_bytes: 0 });
+static COMPILE_CHANGED: Condvar = Condvar::new();
+
+fn compile_reserve() -> u64 {
+    static RESERVE: OnceLock<u64> = OnceLock::new();
+    *RESERVE.get_or_init(|| {
+        std::env::var("VICTORY_PIPELINE_RESERVE_MB")
+            .ok()
+            .and_then(|value| value.trim().parse::<u64>().ok())
+            .unwrap_or(2048)
+            .saturating_mul(MIB)
+    })
+}
+
+fn compile_estimate_bytes(shader_bytes: usize) -> u64 {
+    64 * MIB + (shader_bytes as u64).saturating_mul(1024)
+}
+
+fn compile_allowed(active: usize, available: u64, reserve: u64, running: u64, next: u64) -> bool {
+    active == 0 || available >= reserve.saturating_add(running).saturating_add(next)
+}
+
+fn ram_gate_enabled() -> bool {
+    match std::env::var("VICTORY_PIPELINE_RAM_GATE").ok().as_deref() {
+        Some("0") => false,
+        Some("1") => true,
+        _ => crate::residency::limited_host_ram(),
+    }
+}
+
+struct CompilePermit {
+    estimate: u64,
+    active: bool,
+}
+
+impl CompilePermit {
+    fn take(pipeline: &Pending) -> Self {
+        if !ram_gate_enabled() {
+            return Self { estimate: 0, active: false };
+        }
+        let shader_bytes = pipeline.shaders.iter().map(|shader| shader.container.len()).sum();
+        let estimate = compile_estimate_bytes(shader_bytes);
+        let reserve = compile_reserve();
+        let mut state = COMPILE_STATE.lock().unwrap_or_else(|error| error.into_inner());
+        while !compile_allowed(
+            state.active,
+            crate::host::available_physical_ram().unwrap_or(u64::MAX),
+            reserve,
+            state.estimated_bytes,
+            estimate,
+        ) {
+            let (next, _) = COMPILE_CHANGED.wait_timeout(state, Duration::from_millis(100)).unwrap_or_else(|error| error.into_inner());
+            state = next;
+        }
+        state.active += 1;
+        state.estimated_bytes = state.estimated_bytes.saturating_add(estimate);
+        Self { estimate, active: true }
+    }
+}
+
+impl Drop for CompilePermit {
+    fn drop(&mut self) {
+        if !self.active {
+            return;
+        }
+        let mut state = COMPILE_STATE.lock().unwrap_or_else(|error| error.into_inner());
+        state.active -= 1;
+        state.estimated_bytes = state.estimated_bytes.saturating_sub(self.estimate);
+        COMPILE_CHANGED.notify_all();
+    }
+}
+
 /// What a host pipeline is made from, and the host pipeline once made.
 pub(crate) struct Pending {
     shaders: Vec<Arc<Shader>>,
@@ -139,6 +224,7 @@ impl Pending {
 
     fn make(&self) {
         self.made.get_or_init(|| {
+            let _permit = CompilePermit::take(self);
             let began = Instant::now();
             let made = HostPipeline::new(&self.shaders, self.graphics.as_deref());
             super::library::note_time(&self.key, began.elapsed().as_millis() as u64);
@@ -570,6 +656,22 @@ mod tests {
         assert_eq!(worker_count_for(None, 16, true), 8);
         assert_eq!(worker_count_for(None, 24, true), 8);
         assert_eq!(worker_count_for(Some(12), 8, true), 12);
+    }
+
+    #[test]
+    fn estimated_driver_memory_scales_with_shader_input_size() {
+        assert_eq!(compile_estimate_bytes(0), 64 * MIB);
+        assert_eq!(compile_estimate_bytes(300 << 10), 64 * MIB + (300 << 20));
+        assert!(compile_estimate_bytes(1 << 20) > compile_estimate_bytes(300 << 10));
+    }
+
+    #[test]
+    fn ram_gate_serializes_when_parallel_compiles_would_cross_the_reserve() {
+        let reserve = 2 * 1024 * MIB;
+        let estimate = 512 * MIB;
+        assert!(compile_allowed(0, reserve, reserve, 0, estimate));
+        assert!(compile_allowed(1, reserve + estimate * 2, reserve, estimate, estimate));
+        assert!(!compile_allowed(1, reserve + estimate * 2 - 1, reserve, estimate, estimate));
     }
 
     /// A first use queues the pipeline and, within the budget, gets the

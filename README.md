@@ -119,7 +119,9 @@ commits taken from elsewhere name the commit and its author.
   reads into title memory.
 - **Geckomacabre** and **cxy0072019-sketch**: the texture read-back.
 - **[XCL](https://github.com/ivall/xcl)** (GPL-2.0-only) was read for how the same
-  title behaves under another layer; no code of it is here.
+  title behaves under another layer. Its free-RAM-based compile admission idea
+  was independently implemented for Victory's pipeline workers; no XCL source
+  code or allocator code is included.
 - This fork's changes were made with [Claude Code](https://claude.com/claude-code).
 
 ## License
