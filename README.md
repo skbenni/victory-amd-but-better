@@ -81,6 +81,11 @@ can be read in place, and translated constant-buffer reads avoid per-draw CPU
 fills. Belobug measured these on an RX 7900 XTX, not this RX 6800. `-Safe` leaves
 both off; disable or override either with `-More @{VICTORY_PORT_CONSTANTS='0'}`
 or `-More @{VICTORY_PORT_CBV='0'}` if the driver or game behaves incorrectly.
+It enables renderer port 6 as well. That shares the title-memory write-guard
+lock between faults and refreshes and parallelizes refresh planning; Belobug's
+README reports about 2 ms less per frame on its RX 7900 XTX. That result is not
+measured on an RX 6800. `-Safe` leaves it off; override it with
+`-More @{VICTORY_PORT_GUARD='0'}` if needed.
 
 Before the first run, ahead of time (both can be stopped and go on later):
 
