@@ -33,7 +33,7 @@ if ($Safe) {
     $settings.VICTORY_UNDER_WIDE = '0'; $settings.VICTORY_LAND_ECHO = '0'
 } else {
     $settings.VICTORY_THIN = '1'; $settings.VICTORY_THIN_THREADS = "$thinThreads"
-    $settings.VICTORY_OUTPUT = '1920x1080'
+    $settings.VICTORY_OUTPUT = '1280x720'
     $settings.VICTORY_FRAME_INTERVAL_MS = '16.667'
     $settings.VICTORY_JOIN_PARTS = '8'; $settings.VICTORY_UPLOAD_AHEAD = '1'
     $settings.VICTORY_LEVELS_ON_DEMAND = '1'

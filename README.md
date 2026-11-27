@@ -69,11 +69,16 @@ a diagnostics build. The fast path defaults to `-Console series-s` for speed;
 `-Console series-x` selects the sharper profile. Belobug reported about 5 ms
 shorter frames with Series S at 1080p on an RX 7900 XTX, but this has not been
 measured on an RX 6800. `-RayTracing` turns the title's ray-traced indirect
-light on. The fast path asks the title for a 1920x1080 output; override it with
-`-More @{VICTORY_OUTPUT='2560x1440'}`. Belobug reported about 16 ms less GPU
-time at 1080p on an RX 7900 XTX; this has not been measured on an RX 6800. It
-also requests 60 fps (`VICTORY_FRAME_INTERVAL_MS=16.667`); the actual rate still
-depends on the scene and hardware.
+light on. The fast path asks the title for a 1280x720 output to reduce pixel
+work; use `-More @{VICTORY_OUTPUT='1920x1080'}` for a sharper image or
+`-More @{VICTORY_OUTPUT='2560x1440'}` for higher resolution. The Series S
+upscaler renders at two-thirds scale by default, so the new fast output is
+about 853x480 internally. Belobug reported about 16 ms less GPU time at 1080p
+than at 4K on an RX 7900 XTX; this has not been measured on an RX 6800.
+The fast path also requests 60 fps (`VICTORY_FRAME_INTERVAL_MS=16.667`); the
+actual rate still depends on the scene and hardware.
+`Play-VIctory.cmd` is a small wrapper around this same PowerShell profile and
+always starts the executable built from this checkout (`target\release\victory.exe`).
 
 The fast path also enables Belobug renderer ports 1 and 5: title graphics memory
 can be read in place, and translated constant-buffer reads avoid per-draw CPU
